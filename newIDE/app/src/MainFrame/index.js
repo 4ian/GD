@@ -96,6 +96,8 @@ import OpenFromStorageProviderDialog from '../ProjectsStorage/OpenFromStoragePro
 import SaveToStorageProviderDialog from '../ProjectsStorage/SaveToStorageProviderDialog';
 import OpenConfirmDialog from '../ProjectsStorage/OpenConfirmDialog';
 import verifyProjectContent from '../ProjectsStorage/ProjectContentChecker';
+import GuidelinePopOver from '../guidelines';
+
 const GD_STARTUP_TIMES = global.GD_STARTUP_TIMES || [];
 
 const gd = global.gd;
@@ -120,6 +122,7 @@ type State = {|
   currentProject: ?gdProject,
   currentFileMetadata: ?FileMetadata,
   projectManagerOpen: boolean,
+  guidelinesOpen: boolean,
   editorTabs: EditorTabsState,
   genericDialog: null,
   snackMessage: string,
@@ -173,6 +176,7 @@ class MainFrame extends React.Component<Props, State> {
     currentProject: null,
     currentFileMetadata: null,
     projectManagerOpen: false,
+    guidelinesOpen: false,
     editorTabs: getEditorTabsInitialState(),
     genericDialog: null,
     snackMessage: '',
@@ -490,12 +494,19 @@ class MainFrame extends React.Component<Props, State> {
     if (!this.refs.toolbar)
       this.setState({
         projectManagerOpen: !this.state.projectManagerOpen,
+        guidelinesOpen: true,
       });
   };
 
   openProjectManager = (open: boolean = true) => {
     this.setState({
       projectManagerOpen: open,
+    });
+  };
+
+  openGuidelines = (open: boolean = true) => {
+    this.setState({
+      guidelinesOpen: open,
     });
   };
 
@@ -1450,6 +1461,7 @@ class MainFrame extends React.Component<Props, State> {
       });
     } else {
       this.openProjectManager();
+      this.openGuidelines();
     }
   };
 
@@ -1648,6 +1660,7 @@ class MainFrame extends React.Component<Props, State> {
       currentFileMetadata,
       genericDialog,
       projectManagerOpen,
+      guidelinesOpen,
       profileDialogOpen,
       subscriptionDialogOpen,
       updateStatus,
@@ -1674,6 +1687,8 @@ class MainFrame extends React.Component<Props, State> {
 
     return (
       <div className="main-frame">
+      
+      <GuidelinePopOver open={guidelinesOpen} />
         <ProjectTitlebar fileMetadata={currentFileMetadata} />
         <Drawer
           open={projectManagerOpen}
@@ -1682,6 +1697,7 @@ class MainFrame extends React.Component<Props, State> {
           }}
           onClose={this.toggleProjectManager}
         >
+      
           <EditorBar
             title={currentProject ? currentProject.getName() : 'No project'}
             displayRightCloseButton
@@ -1751,6 +1767,7 @@ class MainFrame extends React.Component<Props, State> {
           simulateUpdateDownloaded={this.simulateUpdateDownloaded}
           simulateUpdateAvailable={this.simulateUpdateAvailable}
         />
+        
         <ClosableTabs hideLabels={!!this.props.integratedEditor}>
           {getEditors(this.state.editorTabs).map((editorTab, id) => {
             const isCurrentTab =
