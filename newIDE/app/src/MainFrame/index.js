@@ -1191,6 +1191,7 @@ class MainFrame extends React.Component<Props, State> {
               }
               onOpen={this.chooseProject}
               onCreate={() => this.openCreateDialog()}
+              onShowExamples={() => this.onShowExamples()}
               onOpenProjectManager={() => this.openProjectManager()}
               onCloseProject={() => {
                 this.askToCloseProject();
@@ -1306,6 +1307,12 @@ class MainFrame extends React.Component<Props, State> {
   };
 
   openCreateDialog = (open: boolean = true) => {
+    this.setState({
+      createDialogOpen: open,
+    });
+  };
+
+   onShowExamples = (open: boolean = true) => {
     this.setState({
       createDialogOpen: open,
     });
