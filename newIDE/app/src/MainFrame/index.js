@@ -480,6 +480,12 @@ class MainFrame extends React.Component<Props, State> {
     });
   };
 
+  componentDidUpdate(prevProps: *, prevState: *) {
+    if (this.state.guidelinesOpen !== prevState.guidelinesOpen) {
+      this.setState({ guidelinesOpen: this.state.guidelinesOpen });
+    }
+  }
+
   getSerializedElements = () => {
     const editorTab = getCurrentTab(this.state.editorTabs);
     if (!editorTab || !editorTab.editorRef) {
@@ -494,8 +500,16 @@ class MainFrame extends React.Component<Props, State> {
     if (!this.refs.toolbar)
       this.setState({
         projectManagerOpen: !this.state.projectManagerOpen,
-        guidelinesOpen: true,
       });
+  };
+
+  restartGuidelines = () => {
+    this.setState({
+      guidelinesOpen: !this.state.guidelinesOpen,
+      //TODO
+      //Ici je passe un index 0 et je le transmet en props à Guidelines component ou il y a plus simple ?
+      //ça agit comme un toggle, ça devrait reset le component de Guidelines.
+    });
   };
 
   openProjectManager = (open: boolean = true) => {
@@ -1193,6 +1207,9 @@ class MainFrame extends React.Component<Props, State> {
               onCreate={() => this.openCreateDialog()}
               onShowExamples={() => this.onShowExamples()}
               onOpenProjectManager={() => this.openProjectManager()}
+              onOpenGuidelines={() => this.openGuidelines()}
+              restartGuidelines={() => this.restartGuidelines()}
+              guidelinesIsOpen={this.state.guidelinesOpen}
               onCloseProject={() => {
                 this.askToCloseProject();
               }}
@@ -1312,7 +1329,7 @@ class MainFrame extends React.Component<Props, State> {
     });
   };
 
-   onShowExamples = (open: boolean = true) => {
+  onShowExamples = (open: boolean = true) => {
     this.setState({
       createDialogOpen: open,
     });
@@ -1468,7 +1485,6 @@ class MainFrame extends React.Component<Props, State> {
       });
     } else {
       this.openProjectManager();
-      this.openGuidelines();
     }
   };
 
@@ -1694,8 +1710,10 @@ class MainFrame extends React.Component<Props, State> {
 
     return (
       <div className="main-frame">
-      
-      <GuidelinePopOver opened={true} />
+        <GuidelinePopOver
+          open={guidelinesOpen}
+          closeHandler={this.restartGuidelines}
+        />
         <ProjectTitlebar fileMetadata={currentFileMetadata} />
         <Drawer
           open={projectManagerOpen}
@@ -1704,7 +1722,6 @@ class MainFrame extends React.Component<Props, State> {
           }}
           onClose={this.toggleProjectManager}
         >
-      
           <EditorBar
             title={currentProject ? currentProject.getName() : 'No project'}
             displayRightCloseButton
@@ -1774,7 +1791,7 @@ class MainFrame extends React.Component<Props, State> {
           simulateUpdateDownloaded={this.simulateUpdateDownloaded}
           simulateUpdateAvailable={this.simulateUpdateAvailable}
         />
-        
+
         <ClosableTabs hideLabels={!!this.props.integratedEditor}>
           {getEditors(this.state.editorTabs).map((editorTab, id) => {
             const isCurrentTab =
