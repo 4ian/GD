@@ -11,6 +11,7 @@ export const Line = props => (
       justifyContent: props.justifyContent,
       flex: props.expand ? 1 : undefined,
     }}
+    {...(props.identifier ? { className: 'guideline-' + props.identifier } : {})}
   >
     {props.children}
   </div>
