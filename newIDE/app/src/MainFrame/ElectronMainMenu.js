@@ -134,6 +134,8 @@ class ElectronMainMenu extends React.Component<Props, {||}> {
       ('update-status': MainMenuEvent),
       (event, status) => this._editor && this._editor.setUpdateStatus(status)
     );
+
+    this._buildAndSendMenuTemplate();
   }
 
   componentDidUpdate() {

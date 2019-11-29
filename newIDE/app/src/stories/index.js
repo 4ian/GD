@@ -22,9 +22,6 @@ import Background from '../UI/Background';
 import HelpFinder from '../HelpFinder';
 import LocalFolderPicker from '../UI/LocalFolderPicker';
 import LocalFilePicker from '../UI/LocalFilePicker';
-import LocalExport from '../Export/LocalExporters/LocalExport';
-import LocalCordovaExport from '../Export/LocalExporters/LocalCordovaExport';
-import LocalS3Export from '../Export/LocalExporters/LocalS3Export';
 import LocalNetworkPreviewDialog from '../Export/LocalExporters/LocalPreviewLauncher/LocalNetworkPreviewDialog';
 import TextEditor from '../ObjectEditor/Editors/TextEditor';
 import TiledSpriteEditor from '../ObjectEditor/Editors/TiledSpriteEditor';
@@ -92,6 +89,12 @@ import {
   release,
   releaseWithBreakingChange,
   releaseWithoutDescription,
+  erroredCordovaBuild,
+  pendingCordovaBuild,
+  pendingElectronBuild,
+  completeCordovaBuild,
+  completeElectronBuild,
+  completeWebBuild,
 } from '../fixtures/GDevelopServicesTestData';
 import debuggerGameDataDump from '../fixtures/DebuggerGameDataDump.json';
 import profilerOutput from '../fixtures/ProfilerOutputsTestData.json';
@@ -107,7 +110,6 @@ import BuildStepsProgress from '../Export/Builds/BuildStepsProgress';
 import MeasuresTable from '../Debugger/Profiler/MeasuresTable';
 import Profiler from '../Debugger/Profiler';
 import SearchPanel from '../EventsSheet/SearchPanel';
-import GDI18nProvider from '../Utils/i18n/GDI18nProvider';
 import PlaceholderMessage from '../UI/PlaceholderMessage';
 import PlaceholderLoader from '../UI/PlaceholderLoader';
 import Checkbox from '../UI/Checkbox';
@@ -158,6 +160,8 @@ import GoogleDriveStorageProvider from '../ProjectsStorage/GoogleDriveStoragePro
 import LocalFileStorageProvider from '../ProjectsStorage/LocalFileStorageProvider';
 import GoogleDriveSaveAsDialog from '../ProjectsStorage/GoogleDriveStorageProvider/GoogleDriveSaveAsDialog';
 import OpenConfirmDialog from '../ProjectsStorage/OpenConfirmDialog';
+import CreateAccountDialog from '../Profile/CreateAccountDialog';
+import BrowserPreviewErrorDialog from '../Export/BrowserExporters/BrowserS3PreviewLauncher/BrowserPreviewErrorDialog';
 
 // No i18n in this file
 
@@ -1456,33 +1460,6 @@ storiesOf('ParameterFields', module)
     />
   ));
 
-storiesOf('LocalExport', module)
-  .addDecorator(paperDecorator)
-  .addDecorator(muiDecorator)
-  .add('default', () => (
-    <GDI18nProvider language="en">
-      <LocalExport project={project} />
-    </GDI18nProvider>
-  ));
-
-storiesOf('LocalS3Export', module)
-  .addDecorator(paperDecorator)
-  .addDecorator(muiDecorator)
-  .add('default', () => (
-    <GDI18nProvider language="en">
-      <LocalS3Export project={project} />
-    </GDI18nProvider>
-  ));
-
-storiesOf('LocalCordovaExport', module)
-  .addDecorator(paperDecorator)
-  .addDecorator(muiDecorator)
-  .add('default', () => (
-    <GDI18nProvider language="en">
-      <LocalCordovaExport project={project} />
-    </GDI18nProvider>
-  ));
-
 storiesOf('BuildStepsProgress', module)
   .addDecorator(paperDecorator)
   .addDecorator(muiDecorator)
@@ -1491,9 +1468,21 @@ storiesOf('BuildStepsProgress', module)
       exportStep={''}
       build={null}
       onDownload={action('download')}
-      uploadMax={0}
-      uploadProgress={0}
+      stepMaxProgress={0}
+      stepCurrentProgress={0}
       errored={false}
+      hasBuildStep
+    />
+  ))
+  .add('BuildStepsProgress (not started) (without build step)', () => (
+    <BuildStepsProgress
+      exportStep={''}
+      build={null}
+      onDownload={action('download')}
+      stepMaxProgress={0}
+      stepCurrentProgress={0}
+      errored={false}
+      hasBuildStep={false}
     />
   ))
   .add('BuildStepsProgress (export)', () => (
@@ -1501,9 +1490,32 @@ storiesOf('BuildStepsProgress', module)
       exportStep={'export'}
       build={null}
       onDownload={action('download')}
-      uploadMax={0}
-      uploadProgress={0}
+      stepMaxProgress={0}
+      stepCurrentProgress={0}
       errored={false}
+      hasBuildStep
+    />
+  ))
+  .add('BuildStepsProgress (resources-download)', () => (
+    <BuildStepsProgress
+      exportStep={'resources-download'}
+      build={null}
+      onDownload={action('download')}
+      stepMaxProgress={27}
+      stepCurrentProgress={16}
+      errored={false}
+      hasBuildStep
+    />
+  ))
+  .add('BuildStepsProgress (export) (errored)', () => (
+    <BuildStepsProgress
+      exportStep={'export'}
+      build={null}
+      onDownload={action('download')}
+      stepMaxProgress={0}
+      stepCurrentProgress={0}
+      errored={true}
+      hasBuildStep
     />
   ))
   .add('BuildStepsProgress (compress)', () => (
@@ -1511,9 +1523,10 @@ storiesOf('BuildStepsProgress', module)
       exportStep={'compress'}
       build={null}
       onDownload={action('download')}
-      uploadMax={0}
-      uploadProgress={0}
+      stepMaxProgress={0}
+      stepCurrentProgress={0}
       errored={false}
+      hasBuildStep
     />
   ))
   .add('BuildStepsProgress (upload)', () => (
@@ -1521,9 +1534,10 @@ storiesOf('BuildStepsProgress', module)
       exportStep={'upload'}
       build={null}
       onDownload={action('download')}
-      uploadMax={100}
-      uploadProgress={20}
+      stepMaxProgress={100}
+      stepCurrentProgress={20}
       errored={false}
+      hasBuildStep
     />
   ))
   .add('BuildStepsProgress (upload) (errored)', () => (
@@ -1531,9 +1545,10 @@ storiesOf('BuildStepsProgress', module)
       exportStep={'upload'}
       build={null}
       onDownload={action('download')}
-      uploadMax={100}
-      uploadProgress={20}
+      stepMaxProgress={100}
+      stepCurrentProgress={20}
       errored
+      hasBuildStep
     />
   ))
   .add('BuildStepsProgress (waiting-for-build)', () => (
@@ -1541,9 +1556,10 @@ storiesOf('BuildStepsProgress', module)
       exportStep={'waiting-for-build'}
       build={null}
       onDownload={action('download')}
-      uploadMax={100}
-      uploadProgress={20}
-      errored
+      stepMaxProgress={100}
+      stepCurrentProgress={20}
+      errored={false}
+      hasBuildStep
     />
   ))
   .add('BuildStepsProgress (build)', () => (
@@ -1558,10 +1574,11 @@ storiesOf('BuildStepsProgress', module)
         createdAt: Date.now(),
       }}
       onDownload={action('download')}
-      uploadMax={100}
-      uploadProgress={20}
-      errored
+      stepMaxProgress={100}
+      stepCurrentProgress={20}
+      errored={false}
       showSeeAllMyBuildsExplanation
+      hasBuildStep
     />
   ))
   .add('BuildStepsProgress (build) (errored)', () => (
@@ -1577,14 +1594,15 @@ storiesOf('BuildStepsProgress', module)
         createdAt: Date.now(),
       }}
       onDownload={action('download')}
-      uploadMax={100}
-      uploadProgress={20}
+      stepMaxProgress={100}
+      stepCurrentProgress={20}
       errored
+      hasBuildStep
     />
   ))
   .add('BuildStepsProgress (build) (complete)', () => (
     <BuildStepsProgress
-      exportStep={'build'}
+      exportStep={'done'}
       build={{
         id: 'fake-build-id',
         userId: 'fake-user-id',
@@ -1596,9 +1614,21 @@ storiesOf('BuildStepsProgress', module)
         createdAt: Date.now(),
       }}
       onDownload={action('download')}
-      uploadMax={100}
-      uploadProgress={20}
-      errored
+      stepMaxProgress={100}
+      stepCurrentProgress={20}
+      errored={false}
+      hasBuildStep
+    />
+  ))
+  .add('BuildStepsProgress (done) (without build step)', () => (
+    <BuildStepsProgress
+      exportStep={'done'}
+      build={null}
+      onDownload={action('download')}
+      stepMaxProgress={100}
+      stepCurrentProgress={20}
+      errored={false}
+      hasBuildStep={false}
     />
   ));
 
@@ -1607,38 +1637,26 @@ storiesOf('BuildProgress', module)
   .addDecorator(muiDecorator)
   .add('errored', () => (
     <BuildProgress
-      build={{
-        status: 'error',
-        logsKey: '/fake-error.log',
-      }}
+      build={erroredCordovaBuild}
       onDownload={action('download')}
     />
   ))
   .add('pending (electron-build)', () => (
     <BuildProgress
-      build={{
-        type: 'electron-build',
-        status: 'pending',
-        updatedAt: Date.now(),
-      }}
+      build={{ ...pendingElectronBuild, updatedAt: Date.now() }}
       onDownload={action('download')}
     />
   ))
   .add('pending (cordova-build)', () => (
     <BuildProgress
-      build={{
-        type: 'cordova-build',
-        status: 'pending',
-        updatedAt: Date.now(),
-      }}
+      build={{ ...pendingCordovaBuild, updatedAt: Date.now() }}
       onDownload={action('download')}
     />
   ))
   .add('pending and very old (cordova-build)', () => (
     <BuildProgress
       build={{
-        type: 'cordova-build',
-        status: 'pending',
+        ...pendingCordovaBuild,
         updatedAt: Date.now() - 1000 * 3600 * 24,
       }}
       onDownload={action('download')}
@@ -1646,30 +1664,18 @@ storiesOf('BuildProgress', module)
   ))
   .add('complete (cordova-build)', () => (
     <BuildProgress
-      build={{
-        type: 'cordova-build',
-        status: 'complete',
-        logsKey: '/fake-error.log',
-        apkKey: '/fake-game.apk',
-        updatedAt: Date.now(),
-      }}
+      build={completeCordovaBuild}
       onDownload={action('download')}
     />
   ))
   .add('complete (electron-build)', () => (
     <BuildProgress
-      build={{
-        type: 'electron-build',
-        status: 'complete',
-        logsKey: '/fake-error.log',
-        windowsExeKey: '/fake-windows-game.exe',
-        windowsZipKey: '/fake-windows-game.zip',
-        macosZipKey: '/fake-macos-game.zip',
-        linuxAppImageKey: '/fake-linux-game.AppImage',
-        updatedAt: Date.now(),
-      }}
+      build={completeElectronBuild}
       onDownload={action('download')}
     />
+  ))
+  .add('complete (web-build)', () => (
+    <BuildProgress build={completeWebBuild} onDownload={action('download')} />
   ));
 
 storiesOf('LocalFolderPicker', module)
@@ -2662,7 +2668,12 @@ storiesOf('Changelog', module)
 storiesOf('CreateProfile', module)
   .addDecorator(paperDecorator)
   .addDecorator(muiDecorator)
-  .add('default', () => <CreateProfile onLogin={action('login')} />);
+  .add('default', () => (
+    <CreateProfile
+      onLogin={action('onLogin')}
+      onCreateAccount={action('onCreateAccount')}
+    />
+  ));
 
 storiesOf('LimitDisplayer', module)
   .addDecorator(paperDecorator)
@@ -2757,15 +2768,13 @@ storiesOf('SubscriptionPendingDialog', module)
     />
   ));
 
-storiesOf('LoginDialog', module)
+storiesOf('Profile/LoginDialog', module)
   .addDecorator(muiDecorator)
   .add('default', () => (
     <LoginDialog
-      open
       onClose={action('on close')}
       loginInProgress={false}
-      createAccountInProgress={false}
-      onCreateAccount={action('on create account')}
+      onGoToCreateAccount={action('on go to create account')}
       onLogin={action('on login')}
       onForgotPassword={action('on forgot password')}
       onCloseResetPasswordDialog={action('on close reset password dialog')}
@@ -2776,26 +2785,9 @@ storiesOf('LoginDialog', module)
   ))
   .add('login in progress', () => (
     <LoginDialog
-      open
       onClose={action('on close')}
       loginInProgress
-      createAccountInProgress={false}
-      onCreateAccount={action('on create account')}
-      onLogin={action('on login')}
-      onForgotPassword={action('on forgot password')}
-      onCloseResetPasswordDialog={action('on close reset password dialog')}
-      resetPasswordDialogOpen={false}
-      forgotPasswordInProgress={false}
-      error={null}
-    />
-  ))
-  .add('create account in progress', () => (
-    <LoginDialog
-      open
-      onClose={action('on close')}
-      loginInProgress={false}
-      createAccountInProgress
-      onCreateAccount={action('on create account')}
+      onGoToCreateAccount={action('on go to create account')}
       onLogin={action('on login')}
       onForgotPassword={action('on forgot password')}
       onCloseResetPasswordDialog={action('on close reset password dialog')}
@@ -2806,11 +2798,9 @@ storiesOf('LoginDialog', module)
   ))
   .add('weak-password error', () => (
     <LoginDialog
-      open
       onClose={action('on close')}
       loginInProgress={false}
-      createAccountInProgress={false}
-      onCreateAccount={action('on create account')}
+      onGoToCreateAccount={action('on go to create account')}
       onLogin={action('on login')}
       onForgotPassword={action('on forgot password')}
       onCloseResetPasswordDialog={action('on close reset password dialog')}
@@ -2823,11 +2813,9 @@ storiesOf('LoginDialog', module)
   ))
   .add('invalid-email error', () => (
     <LoginDialog
-      open
       onClose={action('on close')}
       loginInProgress={false}
-      createAccountInProgress={false}
-      onCreateAccount={action('on create account')}
+      onGoToCreateAccount={action('on go to create account')}
       onLogin={action('on login')}
       onForgotPassword={action('on forgot password')}
       onCloseResetPasswordDialog={action('on close reset password dialog')}
@@ -2840,17 +2828,58 @@ storiesOf('LoginDialog', module)
   ))
   .add('Reset password', () => (
     <LoginDialog
-      open
       onClose={action('on close')}
       loginInProgress={false}
-      createAccountInProgress={false}
-      onCreateAccount={action('on create account')}
+      onGoToCreateAccount={action('on go to create account')}
       onLogin={action('on login')}
       onForgotPassword={action('on forgot password')}
       onCloseResetPasswordDialog={action('on close reset password dialog')}
       forgotPasswordInProgress={false}
       resetPasswordDialogOpen
       error={null}
+    />
+  ));
+
+storiesOf('Profile/CreateAccountDialog', module)
+  .addDecorator(muiDecorator)
+  .add('default', () => (
+    <CreateAccountDialog
+      onClose={action('on close')}
+      createAccountInProgress={false}
+      onGoToLogin={action('on go to create account')}
+      onCreateAccount={action('on login')}
+      error={null}
+    />
+  ))
+  .add('login in progress', () => (
+    <CreateAccountDialog
+      onClose={action('on close')}
+      createAccountInProgress
+      onGoToLogin={action('on go to create account')}
+      onCreateAccount={action('on login')}
+      error={null}
+    />
+  ))
+  .add('weak-password error', () => (
+    <CreateAccountDialog
+      onClose={action('on close')}
+      createAccountInProgress={false}
+      onGoToLogin={action('on go to create account')}
+      onCreateAccount={action('on login')}
+      error={{
+        code: 'auth/weak-password',
+      }}
+    />
+  ))
+  .add('invalid-email error', () => (
+    <CreateAccountDialog
+      onClose={action('on close')}
+      createAccountInProgress={false}
+      onGoToLogin={action('on go to create account')}
+      onCreateAccount={action('on login')}
+      error={{
+        code: 'auth/invalid-email',
+      }}
     />
   ));
 
@@ -2884,6 +2913,28 @@ storiesOf('LocalNetworkPreviewDialog', module)
       error={{ message: 'Oops' }}
       onRunPreviewLocally={action('on run preview locally')}
       onExport={action('on export')}
+      onClose={action('on close')}
+    />
+  ));
+
+storiesOf('BrowserPreviewErrorDialog', module)
+  .addDecorator(paperDecorator)
+  .addDecorator(muiDecorator)
+  .add('generic error', () => (
+    <BrowserPreviewErrorDialog
+      error={new Error('fake error')}
+      onClose={action('on close')}
+    />
+  ))
+  .add('networking error', () => (
+    <BrowserPreviewErrorDialog
+      error={
+        // $FlowFixMe - mocking an Error with "code field"
+        {
+          code: 'NetworkingError',
+          message: "Oops, you're offline",
+        }
+      }
       onClose={action('on close')}
     />
   ));
@@ -3211,6 +3262,7 @@ storiesOf('ProjectManager', module)
       onCloseProject={action('onCloseProject')}
       onExportProject={action('onExportProject')}
       onOpenPreferences={action('onOpenPreferences')}
+      onOpenProfile={action('onOpenProfile')}
       onOpenResources={action('onOpenResources')}
       onOpenPlatformSpecificAssets={action('onOpenPlatformSpecificAssets')}
       onChangeSubscription={action('onChangeSubscription')}
@@ -3249,6 +3301,7 @@ storiesOf('ProjectManager', module)
       onCloseProject={action('onCloseProject')}
       onExportProject={action('onExportProject')}
       onOpenPreferences={action('onOpenPreferences')}
+      onOpenProfile={action('onOpenProfile')}
       onOpenResources={action('onOpenResources')}
       onOpenPlatformSpecificAssets={action('onOpenPlatformSpecificAssets')}
       onChangeSubscription={action('onChangeSubscription')}

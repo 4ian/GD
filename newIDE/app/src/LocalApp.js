@@ -65,7 +65,6 @@ export const create = (authentification: Authentification) => {
                     eventsFunctionsExtensionsState
                   }
                   resourceSources={localResourceSources}
-                  authentification={authentification}
                   storageProviders={storageProviders}
                   useStorageProvider={useStorageProvider}
                   storageProviderOperations={currentStorageProviderOperations}
@@ -123,7 +122,6 @@ export const create = (authentification: Authentification) => {
                   storageProviderOperations={currentStorageProviderOperations}
                   resourceSources={localResourceSources}
                   resourceExternalEditors={localResourceExternalEditors}
-                  authentification={authentification}
                   extensionsLoader={makeExtensionsLoader({
                     gd,
                     objectsEditorService: ObjectsEditorService,
