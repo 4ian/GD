@@ -11,6 +11,7 @@ import BaseEditor from '../BaseEditor';
 import Window from '../../../Utils/Window';
 import { Line, Spacer } from '../../../UI/Grid';
 import GDevelopLogo from './GDevelopLogo';
+import EducationTutorialImage from './EducationTutorialImage';
 import ScrollBackground from './ScrollBackground';
 import RaisedButton from '../../../UI/RaisedButton';
 import Text from '../../../UI/Text';
@@ -28,6 +29,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     maxWidth: 400,
+    margin: 10,
   },
   logoPaper: {
     marginBottom: 10,
@@ -53,13 +55,25 @@ class StartPage extends BaseEditor {
     if (this.props.setToolbar) this.props.setToolbar(null);
   }
 
+  onCreateOpenByTabName = (
+    open: boolean = true,
+    tabName: string = this.state.createDialogInitialTab
+  ) => {
+    this.setState({
+      createDialogOpen: open,
+      createDialogInitialTab: tabName,
+    });
+  };
+
   render() {
     const {
       project,
       canOpen,
       onOpen,
-      onCreate,
       onOpenProjectManager,
+      onOpenGuidelines,
+      closeGuidelines,
+      guidelinesIsOpen,
       onCloseProject,
       onOpenAboutDialog,
       onOpenHelpFinder,
@@ -71,7 +85,64 @@ class StartPage extends BaseEditor {
         {({ i18n }) => (
           <ScrollBackground>
             <div style={styles.innerContainer}>
-              <Line expand justifyContent="center">
+              <Line expand alignItems="center" justifyContent="center">
+                <div style={styles.centerContainer}>
+                  <Paper
+                    elevation={2}
+                    style={{
+                      ...styles.logoPaper,
+                    }}
+                  >
+                    <EducationTutorialImage />
+                    <Text>
+                      <Trans>
+                        Learn step-by-step how create your first game. You will
+                        learn basic concept and will be able to play your game!
+                        Wiki has tutorials for beginners and complete
+                        documentation for the software. Tons of example are also
+                        available just for you in once click.
+                      </Trans>
+                    </Text>
+                  </Paper>
+                  {canOpen && !guidelinesIsOpen && (
+                    <React.Fragment>
+                      <RaisedButton
+                        label={<Trans>Start interactive tutorial</Trans>}
+                        fullWidth
+                        onClick={onOpenGuidelines}
+                        primary
+                      />
+                      <Spacer />
+                    </React.Fragment>
+                  )}
+                  {guidelinesIsOpen && (
+                    <React.Fragment>
+                      <FlatButton
+                        label={<Trans>Close interactive tutorial</Trans>}
+                        fullWidth
+                        onClick={closeGuidelines}
+                      />
+                      <Spacer />
+                    </React.Fragment>
+                  )}
+                  {
+                    <FlatButton
+                      label={<Trans>Search the documentation</Trans>}
+                      fullWidth
+                      onClick={onOpenHelpFinder}
+                    />
+                  }
+                  {
+                    <FlatButton
+                      label={<Trans>See tutorials</Trans>}
+                      fullWidth
+                      onClick={() =>
+                        this.props.onCreateOpenByTabName(true, 'tutorials')
+                      }
+                    />
+                  }
+                </div>
+
                 <div style={styles.centerContainer}>
                   <Paper
                     elevation={2}
@@ -87,24 +158,38 @@ class StartPage extends BaseEditor {
                       </Trans>
                     </Text>
                   </Paper>
-                  {!project && canOpen && (
+                  {!project && (
                     <React.Fragment>
                       <RaisedButton
+                        identifier="createANewProject"
+                        label={<Trans>Create a new project</Trans>}
+                        fullWidth
+                        onClick={() =>
+                          this.props.onCreateOpenByTabName(true, 'starters')
+                        }
+                        primary
+                      />
+                      <Spacer />
+                    </React.Fragment>
+                  )}
+                  {!project && canOpen && (
+                    <React.Fragment>
+                      <FlatButton
                         label={<Trans>Open a project</Trans>}
                         fullWidth
                         onClick={onOpen}
-                        primary
                       />
                       <Spacer />
                     </React.Fragment>
                   )}
                   {!project && (
                     <React.Fragment>
-                      <RaisedButton
-                        label={<Trans>Create a new project</Trans>}
+                      <FlatButton
+                        label={<Trans>Open examples</Trans>}
                         fullWidth
-                        onClick={onCreate}
-                        primary
+                        onClick={() =>
+                          this.props.onCreateOpenByTabName(true, 'examples')
+                        }
                       />
                       <Spacer />
                     </React.Fragment>
@@ -130,15 +215,9 @@ class StartPage extends BaseEditor {
                       <Spacer />
                     </React.Fragment>
                   )}
-                  {
-                    <FlatButton
-                      label={<Trans>Search the documentation</Trans>}
-                      fullWidth
-                      onClick={onOpenHelpFinder}
-                    />
-                  }
                 </div>
               </Line>
+
               <Line alignItems="center" justifyContent="space-between">
                 <Line>
                   <FlatButton
@@ -160,7 +239,7 @@ class StartPage extends BaseEditor {
                     }
                   />
                 </Line>
-                <Line alignItems="center">
+                <Line alignItems="center" identifier="socialNetwork">
                   <FlatButton
                     label={i18n.language}
                     onClick={onOpenLanguageDialog}

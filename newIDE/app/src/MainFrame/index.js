@@ -92,6 +92,8 @@ import OpenFromStorageProviderDialog from '../ProjectsStorage/OpenFromStoragePro
 import SaveToStorageProviderDialog from '../ProjectsStorage/SaveToStorageProviderDialog';
 import OpenConfirmDialog from '../ProjectsStorage/OpenConfirmDialog';
 import verifyProjectContent from '../ProjectsStorage/ProjectContentChecker';
+import GuidelinePopOver from '../guidelines';
+
 const GD_STARTUP_TIMES = global.GD_STARTUP_TIMES || [];
 
 const gd = global.gd;
@@ -106,6 +108,7 @@ const styles = {
 };
 
 type State = {|
+  createDialogInitialTab: string,
   createDialogOpen: boolean,
   exportDialogOpen: boolean,
   introDialogOpen: boolean,
@@ -116,6 +119,7 @@ type State = {|
   currentProject: ?gdProject,
   currentFileMetadata: ?FileMetadata,
   projectManagerOpen: boolean,
+  guidelinesOpen: boolean,
   editorTabs: EditorTabsState,
   genericDialog: null,
   snackMessage: string,
@@ -160,6 +164,7 @@ type Props = {
 
 class MainFrame extends React.Component<Props, State> {
   state = {
+    createDialogInitialTab: 'starters',
     createDialogOpen: false,
     exportDialogOpen: false,
     introDialogOpen: false,
@@ -170,6 +175,7 @@ class MainFrame extends React.Component<Props, State> {
     currentProject: null,
     currentFileMetadata: null,
     projectManagerOpen: false,
+    guidelinesOpen: false,
     editorTabs: getEditorTabsInitialState(),
     genericDialog: null,
     snackMessage: '',
@@ -190,6 +196,7 @@ class MainFrame extends React.Component<Props, State> {
   toolbar = null;
   _resourceSourceDialogs = {};
   _previewLauncher: ?PreviewLauncherInterface = null;
+  _guidelines = React.createRef<GuidelinePopOver>();
 
   componentWillMount() {
     if (!this.props.integratedEditor) this.openStartPage();
@@ -295,6 +302,15 @@ class MainFrame extends React.Component<Props, State> {
           );
         }
       });
+  };
+
+  closeGuidelines = () => {
+    // this._guidelines.current is a reference to your component. Beware, it can be `null` if for some reason it was not rendered on the screen by React.
+    if (this._guidelines.current) {
+      this._guidelines.current.reset();
+      this.openGuidelines(false);
+
+    }
   };
 
   loadFromSerializedProject = (
@@ -489,6 +505,12 @@ class MainFrame extends React.Component<Props, State> {
     });
   };
 
+  componentDidUpdate(prevProps: *, prevState: *) {
+    if (this.state.guidelinesOpen !== prevState.guidelinesOpen) {
+      this.setState({ guidelinesOpen: this.state.guidelinesOpen });
+    }
+  }
+
   getSerializedElements = () => {
     const editorTab = getCurrentTab(this.state.editorTabs);
     if (!editorTab || !editorTab.editorRef) {
@@ -509,6 +531,12 @@ class MainFrame extends React.Component<Props, State> {
   openProjectManager = (open: boolean = true) => {
     this.setState({
       projectManagerOpen: open,
+    });
+  };
+
+  openGuidelines = (open: boolean = true) => {
+    this.setState({
+      guidelinesOpen: open,
     });
   };
 
@@ -1211,8 +1239,13 @@ class MainFrame extends React.Component<Props, State> {
                 ).length
               }
               onOpen={this.chooseProject}
-              onCreate={() => this.openCreateDialog()}
+              onCreateOpenByTabName={(isOpen, tabName) =>
+                this.openCreateDialogTabByName(isOpen, tabName)
+              }
               onOpenProjectManager={() => this.openProjectManager()}
+              onOpenGuidelines={() => this.openGuidelines()}
+              closeGuidelines={() => this.closeGuidelines()}
+              guidelinesIsOpen={this.state.guidelinesOpen}
               onCloseProject={() => {
                 this.askToCloseProject();
               }}
@@ -1326,9 +1359,13 @@ class MainFrame extends React.Component<Props, State> {
     );
   };
 
-  openCreateDialog = (open: boolean = true) => {
+  openCreateDialogTabByName = (
+    open: boolean = true,
+    tabName: string = this.state.createDialogInitialTab
+  ) => {
     this.setState({
       createDialogOpen: open,
+      createDialogInitialTab: tabName,
     });
   };
 
@@ -1680,6 +1717,7 @@ class MainFrame extends React.Component<Props, State> {
       currentFileMetadata,
       genericDialog,
       projectManagerOpen,
+      guidelinesOpen,
       profileDialogOpen,
       subscriptionDialogOpen,
       updateStatus,
@@ -1706,6 +1744,14 @@ class MainFrame extends React.Component<Props, State> {
 
     return (
       <div className="main-frame">
+        <GuidelinePopOver
+          ref={this._guidelines}
+          open={guidelinesOpen}
+          closeHandler={() => {
+            this.openGuidelines(false);
+            this.closeGuidelines();
+          }}
+        />
         <ProjectTitlebar fileMetadata={currentFileMetadata} />
         <Drawer
           open={projectManagerOpen}
@@ -1774,16 +1820,18 @@ class MainFrame extends React.Component<Props, State> {
             </EmptyMessage>
           )}
         </Drawer>
-        <Toolbar
-          ref={toolbar => (this.toolbar = toolbar)}
-          showProjectIcons={!this.props.integratedEditor}
-          hasProject={!!this.state.currentProject}
-          toggleProjectManager={this.toggleProjectManager}
-          exportProject={() => this.openExportDialog(true)}
-          requestUpdate={this.props.requestUpdate}
-          simulateUpdateDownloaded={this.simulateUpdateDownloaded}
-          simulateUpdateAvailable={this.simulateUpdateAvailable}
-        />
+          <Toolbar
+            ref={toolbar => (this.toolbar = toolbar)}
+            showProjectIcons={!this.props.integratedEditor}
+            hasProject={!!this.state.currentProject}
+            toggleProjectManager={this.toggleProjectManager}
+            exportProject={() => this.openExportDialog(true)}
+            requestUpdate={this.props.requestUpdate}
+            simulateUpdateDownloaded={this.simulateUpdateDownloaded}
+            simulateUpdateAvailable={this.simulateUpdateAvailable}
+            identifier="Toolbar"
+          />
+
         <ClosableTabs hideLabels={!!this.props.integratedEditor}>
           {getEditors(this.state.editorTabs).map((editorTab, id) => {
             const isCurrentTab =
@@ -1838,16 +1886,17 @@ class MainFrame extends React.Component<Props, State> {
         {!!renderCreateDialog &&
           this.state.createDialogOpen &&
           renderCreateDialog({
+            initialTab: this.state.createDialogInitialTab,
             open: this.state.createDialogOpen,
-            onClose: () => this.openCreateDialog(false),
+            onClose: () => this.openCreateDialogTabByName(false),
             onOpen: (storageProvider, fileMetadata) => {
-              this.openCreateDialog(false);
+              this.openCreateDialogTabByName(false);
               useStorageProvider(storageProvider)
                 .then(() => this.openFromFileMetadata(fileMetadata))
                 .then(() => this.openSceneOrProjectManager());
             },
             onCreate: (project, storageProvider, fileMetadata) => {
-              this.openCreateDialog(false);
+              this.openCreateDialogTabByName(false);
               useStorageProvider(storageProvider)
                 .then(() => this.loadFromProject(project, fileMetadata))
                 .then(() => this.openSceneOrProjectManager());
@@ -1947,7 +1996,7 @@ class MainFrame extends React.Component<Props, State> {
             }}
             onCreateNewProject={() => {
               this.openOpenFromStorageProviderDialog(false);
-              this.openCreateDialog(true);
+              this.openCreateDialogTabByName(true);
             }}
           />
         )}
