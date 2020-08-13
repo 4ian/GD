@@ -6,6 +6,14 @@
  */
 
 /**
+ * @typedef Camera
+ * @property {number} cameraX The camera x position
+ * @property {number} cameraY The camera y position
+ * @property {number} zoomFactor The camera zoom
+ * @property {number} cameraRotation The camera rotation
+ */
+
+/**
  * Represents a layer of a scene, used to display objects.
  *
  * Viewports and multiple cameras are not supported.
@@ -17,13 +25,11 @@
  */
 gdjs.Layer = function(layerData, runtimeScene) {
   this._name = layerData.name;
-  this._cameraRotation = 0;
-  this._zoomFactor = 1;
+  this._cameras = [];
+  this._currentCamera = 0;
   this._timeScale = 1;
   this._hidden = !layerData.visibility;
   this._initialEffectsData = layerData.effects || [];
-  this._cameraX = runtimeScene.getGame().getGameResolutionWidth() / 2;
-  this._cameraY = runtimeScene.getGame().getGameResolutionHeight() / 2;
   this._cachedGameResolutionWidth = runtimeScene
     .getGame()
     .getGameResolutionWidth();
@@ -66,9 +72,9 @@ gdjs.Layer.prototype.onGameResolutionResized = function() {
   // expected not to "move". Not adapting the center position would make the camera
   // move from its initial position (which is centered in the screen) - and anchor
   // behavior would behave counterintuitively.
-  this._cameraX +=
+  this.getCamera().cameraX +=
     (this._cachedGameResolutionWidth - oldGameResolutionWidth) / 2;
-  this._cameraY +=
+  this.getCamera().cameraY +=
     (this._cachedGameResolutionHeight - oldGameResolutionHeight) / 2;
   this._renderer.updatePosition();
 };
@@ -97,68 +103,104 @@ gdjs.Layer.prototype.getName = function() {
   return this._name;
 };
 
+gdjs.Layer.prototype._createCamera = function(cameraId) {
+  var camera = {
+    cameraX: this._runtimeScene.getGame().getGameResolutionHeight() / 2,
+    cameraY: this._runtimeScene.getGame().getGameResolutionHeight() / 2,
+    zoomFactor: 1,
+    cameraRotation: 0,
+  }
+  this._cameras[cameraId] = camera;
+};
+
+gdjs.Layer.prototype.setCurrentCamera = function(cameraId) {
+  this._currentCamera = cameraId;
+  this._renderer.updatePosition();
+}
+
+gdjs.Layer.prototype.getCurrentCamera = function() {
+  return this._currentCamera;
+}
+
+/**
+ * Returns the requested camera. Creates it if not existing.
+ * @param {number} [cameraId] The camera number.
+ * @returns {Camera}
+ */
+gdjs.Layer.prototype.getCamera = function(cameraId) {
+  if(cameraId == undefined) cameraId = this.getCurrentCamera();
+  if(this._cameras.length <= cameraId || this._cameras[cameraId] == undefined) {
+    this._createCamera(cameraId);
+  }
+  return this._cameras[cameraId];
+};
+
 /**
  * Change the camera center X position.
  *
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  * @return The x position of the camera
  */
 gdjs.Layer.prototype.getCameraX = function(cameraId) {
-  return this._cameraX;
+  return this.getCamera(cameraId).cameraX;
 };
 
 /**
  * Change the camera center Y position.
  *
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  * @return The y position of the camera
  */
 gdjs.Layer.prototype.getCameraY = function(cameraId) {
-  return this._cameraY;
+  return this.getCamera(cameraId).cameraY;
 };
 
 /**
  * Set the camera center X position.
  *
  * @param {number} x The new x position
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  */
 gdjs.Layer.prototype.setCameraX = function(x, cameraId) {
-  this._cameraX = x;
-  this._renderer.updatePosition();
+  this.getCamera(cameraId).cameraX = x;
+  if(cameraId === this._currentCamera) {
+    this._renderer.updatePosition();
+  }
 };
 
 /**
  * Set the camera center Y position.
  *
  * @param {number} y The new y position
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  */
 gdjs.Layer.prototype.setCameraY = function(y, cameraId) {
-  this._cameraY = y;
-  this._renderer.updatePosition();
+  this.getCamera(cameraId).cameraY = y;
+  if(cameraId === this._currentCamera) {
+    this._renderer.updatePosition();
+  }
 };
 
 /**
  * Get the camera width (which can be different than the game resolution width
  * if the camera is zoomed).
  *
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  * @return {number} The width of the camera
  */
 gdjs.Layer.prototype.getCameraWidth = function(cameraId) {
-  return (+this._cachedGameResolutionWidth * 1) / this._zoomFactor;
+  return (+this._cachedGameResolutionWidth * 1) / this.getCamera(cameraId).zoomFactor;
 };
 
 /**
  * Get the camera height (which can be different than the game resolution height
  * if the camera is zoomed).
  *
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  * @return {number} The height of the camera
  */
 gdjs.Layer.prototype.getCameraHeight = function(cameraId) {
-  return (+this._cachedGameResolutionHeight * 1) / this._zoomFactor;
+  return (+this._cachedGameResolutionWidth * 1) / this.getCamera(cameraId).zoomFactor;
 };
 
 /**
@@ -183,31 +225,33 @@ gdjs.Layer.prototype.isVisible = function() {
  * Set the zoom of a camera.
  *
  * @param {number} newZoom The new zoom. Must be superior to 0. 1 is the default zoom.
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  */
 gdjs.Layer.prototype.setCameraZoom = function(newZoom, cameraId) {
-  this._zoomFactor = newZoom;
-  this._renderer.updatePosition();
+  this.getCamera(cameraId).zoomFactor = newZoom;
+  if(cameraId === this._currentCamera) {
+    this._renderer.updatePosition();
+  }
 };
 
 /**
  * Get the zoom of a camera.
  *
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  * @return {number} The zoom.
  */
 gdjs.Layer.prototype.getCameraZoom = function(cameraId) {
-  return this._zoomFactor;
+  return this.getCamera(cameraId).zoomFactor;
 };
 
 /**
  * Get the rotation of the camera, expressed in degrees.
  *
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  * @return {number} The rotation, in degrees.
  */
 gdjs.Layer.prototype.getCameraRotation = function(cameraId) {
-  return this._cameraRotation;
+  return this.getCamera(cameraId).cameraRotation;
 };
 
 /**
@@ -215,11 +259,13 @@ gdjs.Layer.prototype.getCameraRotation = function(cameraId) {
  * The rotation is made around the camera center.
  *
  * @param {number} rotation The new rotation, in degrees.
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  */
 gdjs.Layer.prototype.setCameraRotation = function(rotation, cameraId) {
-  this._cameraRotation = rotation;
-  this._renderer.updatePosition();
+  this.getCamera(cameraId).cameraRotation = rotation;
+  if(cameraId === this._currentCamera) {
+    this._renderer.updatePosition();
+  }
 };
 
 /**
@@ -230,39 +276,43 @@ gdjs.Layer.prototype.setCameraRotation = function(rotation, cameraId) {
  *
  * @param {number} x The x position, in canvas coordinates.
  * @param {number} y The y position, in canvas coordinates.
- * @param {number=} cameraId The camera number. Currently ignored.
+ * @param {number} [cameraId] The camera number.
  */
 gdjs.Layer.prototype.convertCoords = function(x, y, cameraId) {
+  var camera = this.getCamera(cameraId);
+
   x -= this._cachedGameResolutionWidth / 2;
   y -= this._cachedGameResolutionHeight / 2;
-  x /= Math.abs(this._zoomFactor);
-  y /= Math.abs(this._zoomFactor);
+  x /= Math.abs(camera.zoomFactor);
+  y /= Math.abs(camera.zoomFactor);
 
   // Only compute angle and cos/sin once (allow heavy optimization from JS engines).
-  var angleInRadians = (this._cameraRotation / 180) * Math.PI;
+  var angleInRadians = (camera.cameraRotation / 180) * Math.PI;
   var tmp = x;
   var cosValue = Math.cos(angleInRadians);
   var sinValue = Math.sin(angleInRadians);
   x = cosValue * x - sinValue * y;
   y = sinValue * tmp + cosValue * y;
 
-  return [x + this.getCameraX(cameraId), y + this.getCameraY(cameraId)];
+  return [x + camera.cameraX, y + camera.cameraY];
 };
 
 gdjs.Layer.prototype.convertInverseCoords = function(x, y, cameraId) {
-  x -= this.getCameraX(cameraId);
-  y -= this.getCameraY(cameraId);
+  var camera = this.getCamera(cameraId);
+
+  x -= camera.cameraX;
+  y -= camera.cameraY;
 
   // Only compute angle and cos/sin once (allow heavy optimization from JS engines).
-  var angleInRadians = (this._cameraRotation / 180) * Math.PI;
+  var angleInRadians = (camera.cameraRotation / 180) * Math.PI;
   var tmp = x;
   var cosValue = Math.cos(-angleInRadians);
   var sinValue = Math.sin(-angleInRadians);
   x = cosValue * x - sinValue * y;
   y = sinValue * tmp + cosValue * y;
 
-  x *= Math.abs(this._zoomFactor);
-  y *= Math.abs(this._zoomFactor);
+  x *= Math.abs(camera.zoomFactor);
+  y *= Math.abs(camera.zoomFactor);
 
   return [
     x + this._cachedGameResolutionWidth / 2,
