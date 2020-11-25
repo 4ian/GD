@@ -131,3 +131,54 @@ gdjs.SpriteRuntimeObjectPixiRenderer.getAnimationFrameWidth = function(pixiTextu
 gdjs.SpriteRuntimeObjectPixiRenderer.getAnimationFrameHeight = function(pixiTexture) {
     return pixiTexture.height;
 };
+
+gdjs.SpriteRuntimeObjectPixiRenderer.setSprite = function(runtimeScene, imageName) {
+    this._spriteDirty = true;
+    this._sprite = new PIXI.Sprite(runtimeScene.getGame().getImageManager().getPIXITexture(imageName));
+};
+
+gdjs.SpriteRuntimeObjectPixiRenderer.prototype.setShader = function(pixiShader) {
+     this._sprite.shader = pixiShader;
+};
+
+gdjs.SpriteRuntimeObjectPixiRenderer.prototype.setFilter = function(pixiFilter) {
+     this._sprite.filters = [ pixiFilter ];
+};
+
+gdjs.SpriteRuntimeObjectPixiRenderer.prototype.applyTextureOverAnotherSprite = function (
+  runtimeScene,
+  imageName,
+  x,
+  y,
+  useTransparency,
+  angle
+) {
+  var container = new PIXI.Container();
+  var currentTexture = this.getRendererObject().texture;
+  var currentTextureSprite = new PIXI.Sprite(currentTexture);
+  container.addChild(currentTextureSprite);
+  var texture_sc = runtimeScene
+    .getGame()
+    .getImageManager()
+    .getPIXITexture(imageName);
+  var sprite_sc = new PIXI.Sprite(texture_sc);
+
+  container.addChild(sprite_sc);
+
+  sprite_sc.x = x;
+  sprite_sc.y = y;
+  sprite_sc.angle = angle;
+
+  var renderTexture = PIXI.RenderTexture.create(
+    container.width,
+    container.height
+  );
+
+  runtimeScene
+    .getGame()
+    .getRenderer()
+    .getPIXIRenderer()
+    .render(container, renderTexture);
+
+  this.getRendererObject().texture = renderTexture;
+};

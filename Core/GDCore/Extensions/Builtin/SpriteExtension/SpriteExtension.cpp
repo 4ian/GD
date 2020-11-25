@@ -349,7 +349,8 @@ void GD_CORE_API BuiltinExtensionsImplementer::ImplementsSpriteExtension(
       .AddParameter("expression", _("Y position"))
       .AddParameter(
           "yesorno",
-          _("Should the copy take in account the source transparency\?"));
+          _("Should the copy take in account the source transparency\?"))
+      .AddParameter("expression", _("Angle"));
 
   obj.AddAction(
          "CreateMaskFromColorOnActualImage",  // Actual is indeed a mistake :
@@ -363,7 +364,8 @@ void GD_CORE_API BuiltinExtensionsImplementer::ImplementsSpriteExtension(
          "res/actions/opacity.png")
 
       .AddParameter("object", _("Object"), "Sprite")
-      .AddParameter("color", _("Color to make transparent"));
+      .AddParameter("color", _("Color to make transparent"))
+      .AddParameter("expression", _("Threshold"));
 
   obj.AddAction(
          "ChangeColor",
