@@ -250,6 +250,7 @@ export default class InstancesEditor extends Component<Props> {
       setZoomFactor: this.setZoomFactor,
       getZoomFactor: this.getZoomFactor,
       viewPosition: this.viewPosition,
+      setViewPosition: this.props.onViewPositionChanged,
     });
 
     this.canvasCursor = new CanvasCursor({

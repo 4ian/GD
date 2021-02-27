@@ -60,8 +60,15 @@ export default class FullSizeInstancesEditorWithScrollbars extends Component<
   };
 
   componentDidMount() {
-    if (this._editor) {
-      this._handleViewPositionChange(this._editor.getViewPosition());
+    const editor = this._editor;
+    if (editor) {
+      this._handleViewPositionChange(editor.getViewPosition());
+      if (this.props.options.viewPositionValid) {
+        editor.scrollTo(
+          this.props.options.viewXPosition,
+          this.props.options.viewYPosition
+        );
+      }
     }
   }
 
@@ -78,6 +85,15 @@ export default class FullSizeInstancesEditorWithScrollbars extends Component<
         }
       }
     );
+
+    //Prevent reduntant calls to onChangeOptions
+    if (this.props.options.viewXPosition !== xValue) {
+      this.props.onChangeOptions({
+        viewXPosition: this.state.xValue,
+        viewYPosition: this.state.yValue,
+        viewPositionValid: true,
+      });
+    }
   };
 
   _handleYChange = (e: any, value: number) => {
@@ -95,6 +111,15 @@ export default class FullSizeInstancesEditorWithScrollbars extends Component<
         }
       }
     );
+
+    //Prevent reduntant calls to onChangeOptions
+    if (this.props.options.viewYPosition !== yValue) {
+      this.props.onChangeOptions({
+        viewXPosition: this.state.xValue,
+        viewYPosition: this.state.yValue,
+        viewPositionValid: true,
+      });
+    }
   };
 
   _setAndAdjust = ({ xValue, yValue }: { xValue: number, yValue: number }) => {
@@ -108,6 +133,12 @@ export default class FullSizeInstancesEditorWithScrollbars extends Component<
       yMin: -yMax,
       xValue,
       yValue,
+    });
+
+    this.props.onChangeOptions({
+      viewXPosition: this.state.xValue,
+      viewYPosition: this.state.yValue,
+      viewPositionValid: true,
     });
   };
 
