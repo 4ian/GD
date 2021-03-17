@@ -142,3 +142,21 @@ export const applyResourceDefaults = (
     newResource.setSmooth(project.getScaleMode() !== 'nearest');
   }
 };
+
+/*
+TODO rework ce fichier pour merge getResourceFilePathStatus et getResourceStatus
+*/
+export const getResourceStatus = (
+  project: gdProject,
+  resourceName: string
+) => {
+  const codeStatus = ResourcesLoader.getStatusCode(project, resourceName);
+
+  if (!codeStatus) return;
+
+  return codeStatus.indexOf('ERROR')
+    ? 'error'
+    : codeStatus.indexOf('WARNING')
+    ? 'warning'
+    : ''; // The resource path seems ok if no status
+};

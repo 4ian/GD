@@ -156,7 +156,7 @@ export default class ImagePreview extends React.Component<Props, State> {
             0,
             containerWidth / 2 -
               ((imageWidth || 0) * imageZoomFactor) / 2 -
-              MARGIN
+              MARGIN || 0
           );
 
           const imageStyle = {

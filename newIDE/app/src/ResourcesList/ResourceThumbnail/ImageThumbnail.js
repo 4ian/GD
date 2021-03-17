@@ -2,6 +2,12 @@ import React from 'react';
 import Checkbox from '../../UI/Checkbox';
 import { CorsAwareImage } from '../../UI/CorsAwareImage';
 import ThemeConsumer from '../../UI/Theme/ThemeConsumer';
+import {
+  checkImageElementSize,
+  confirmationImportImage,
+} from '../../Utils/ImageSizeChecker';
+import Tooltip from '@material-ui/core/Tooltip';
+import Warning from '@material-ui/icons/Warning';
 import { useLongTouch } from '../../Utils/UseLongTouch';
 
 const SPRITE_SIZE = 100;
@@ -37,6 +43,13 @@ const styles = {
     bottom: 0,
     right: 0,
   },
+  spriteWarning: {
+    position: 'absolute',
+    display: 'flex',
+    top: 0,
+    right: 0,
+  },
+  icon: { width: 28, height: 28 },
 };
 
 const ImageThumbnail = ({
@@ -47,9 +60,35 @@ const ImageThumbnail = ({
   selectable,
   selected,
   onSelect,
+  deleteSprite,
   onContextMenu,
   muiTheme,
 }) => {
+
+  const [hasSizeWarning, setHasWarningSize] = React.useState(false);
+  const [hasThumbnailMissing, setThumbnailMissing] = React.useState(false);
+
+  const _callbackImageThumbnailLoaded = (imageElement: HTMLImageElement) => {
+    const existAlready = resourcesLoader.getStatusCode(project, resourceName);
+    if (existAlready === 'WARNING_IMAGE_EXCEEDED_2048_PIXELS') {
+      setHasWarningSize(true);
+      return;
+    } else {
+      if (checkImageElementSize(imageElement)) {
+        onSelect(selected);
+        setHasWarningSize(true);
+        if (!confirmationImportImage()) {
+          deleteSprite(true);
+          // TODO Supprimer la resource
+          //deleteResource(PATH);
+        }
+      } else {
+        setHasWarningSize(false);
+      }
+    }
+    setThumbnailMissing(false);
+  };
+
   // Allow a long press to show the context menu
   const longTouchForContextMenuProps = useLongTouch(
     React.useCallback(
@@ -69,6 +108,8 @@ const ImageThumbnail = ({
             ...styles.spriteThumbnail,
             borderColor: selected
               ? muiTheme.imageThumbnail.selectedBorderColor
+              : hasThumbnailMissing
+              ? muiTheme.message.error
               : undefined,
             ...style,
           }}
@@ -80,8 +121,13 @@ const ImageThumbnail = ({
         >
           <CorsAwareImage
             style={styles.spriteThumbnailImage}
-            alt={resourceName}
+            alt={hasThumbnailMissing ? '' : resourceName}
             src={resourcesLoader.getResourceFullUrl(project, resourceName, {})}
+            crossOrigin="anonymous"
+            onLoad={_callbackImageThumbnailLoaded}
+            onError={() => {
+              setThumbnailMissing(true);
+            }}
           />
           {selectable && (
             <div style={styles.checkboxContainer}>
@@ -89,6 +135,36 @@ const ImageThumbnail = ({
                 checked={selected}
                 onCheck={(e, check) => onSelect(check)}
               />
+            </div>
+          )}
+          {hasSizeWarning && (
+            <div style={styles.spriteWarning}>
+              <Tooltip
+                title={`Sprite is taller than 2048px wide, this have consequence on performance.`}
+                placement="top"
+              >
+                <Warning
+                  style={{
+                    ...styles.icon,
+                    color: muiTheme.message.warning,
+                  }}
+                />
+              </Tooltip>
+            </div>
+          )}
+          {hasThumbnailMissing && (
+            <div style={styles.spriteWarning}>
+              <Tooltip
+                title={`Image ${resourceName} is missing in resource panel.`}
+                placement="top"
+              >
+                <Warning
+                  style={{
+                    ...styles.icon,
+                    color: muiTheme.message.error,
+                  }}
+                />
+              </Tooltip>
             </div>
           )}
         </div>

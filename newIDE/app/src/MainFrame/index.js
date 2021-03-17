@@ -114,9 +114,11 @@ import {
 import { type HotReloadPreviewButtonProps } from '../HotReload/HotReloadPreviewButton';
 import HotReloadLogsDialog from '../HotReload/HotReloadLogsDialog';
 import { useDiscordRichPresence } from '../Utils/UpdateDiscordRichPresence';
+import { ResourcesWatcher } from '../ResourcesLoader/ResourcesWatcher.js';
 import { useResourceFetcher } from '../ProjectsStorage/ResourceFetcher';
 import { delay } from '../Utils/Delay';
 import { type ExtensionShortHeader } from '../Utils/GDevelopServices/Extension';
+import PixiResourcesLoader from '../ObjectsRendering/PixiResourcesLoader';
 
 const GD_STARTUP_TIMES = global.GD_STARTUP_TIMES || [];
 
@@ -2124,6 +2126,7 @@ const MainFrame = (props: Props) => {
                   isActive: isCurrentTab,
                   extraEditorProps: editorTab.extraEditorProps,
                   project: currentProject,
+                  resources: state.resources,
                   ref: editorRef => (editorTab.editorRef = editorRef),
                   setToolbar: setEditorToolbar,
                   onChangeSubscription: () => openSubscriptionDialog(true),
@@ -2362,6 +2365,27 @@ const MainFrame = (props: Props) => {
       {state.gdjsDevelopmentWatcherEnabled &&
         renderGDJSDevelopmentWatcher &&
         renderGDJSDevelopmentWatcher()}
+
+      {state.currentProject && (
+        <ResourcesWatcher
+          project={state.currentProject}
+          updateResource={resources => {
+            setState(state => ({
+              ...state,
+              resources: resources,
+            }));
+
+            const editorTab = getCurrentTab(state.editorTabs);
+            if (editorTab && editorTab.editorRef) {
+              PixiResourcesLoader.deleteResourcesCache(
+                state.currentProject,
+                resources
+              );
+              editorTab.editorRef.forceUpdateEditor();
+            }
+          }}
+        />
+      )}
       {!!hotReloadLogs.length && (
         <HotReloadLogsDialog
           logs={hotReloadLogs}

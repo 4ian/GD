@@ -16,6 +16,7 @@ import {
   createOrUpdateResource,
   getLocalResourceFullPath,
   getResourceFilePathStatus,
+  getResourceStatus,
   RESOURCE_EXTENSIONS,
 } from './ResourceUtils.js';
 import { type ResourceKind } from './ResourceSource.flow';
@@ -144,6 +145,50 @@ export default class ResourcesList extends React.Component<Props, State> {
     });
   };
 
+
+  /*
+   Watcher on resources
+
+  Quand on detecte un changement dans projectPath
+  Si c'est une resource prise en charge par le logiciel
+  Actualisé le status de warning ou d'erreur.
+
+
+  Recupération de la dimension avec 
+  https://www.npmjs.com/package/image-size
+  - le module est asynchrone (promesse ?)
+  - Voir si c pas plus simple de faire une image avec le fichier et lire le bordel.
+
+   */   
+
+  _removeUnusedResources = (resourceType: ResourceKind) => {
+    const { project } = this.props;
+    gd.ProjectResourcesAdder.getAllUseless(project, resourceType)
+      .toJSArray()
+      .forEach(resourceName => {
+        console.info(
+          `Removing unused` + resourceType + ` resource: ${resourceName}`
+        );
+      });
+    gd.ProjectResourcesAdder.removeAllUseless(project, resourceType);
+    this.forceUpdate();
+  };
+
+  _removeAllResourcesWithInvalidPath = () => {
+    const { project } = this.props;
+    const resourcesManager = project.getResourcesManager();
+    resourcesManager
+      .getAllResourceNames()
+      .toJSArray()
+      .forEach(resourceName => {
+        if (getResourceFilePathStatus(project, resourceName) === 'error') {
+          resourcesManager.removeResource(resourceName);
+          console.info('Removed due to invalid path: ' + resourceName);
+        }
+      });
+    this.forceUpdate();
+  };
+
   _editName = (resource: ?gdResource) => {
     this.setState(
       {
@@ -153,6 +198,23 @@ export default class ResourcesList extends React.Component<Props, State> {
         if (this.sortableList) this.sortableList.forceUpdateGrid();
       }
     );
+  };
+
+  _getResourceThumbnail = (resource: gdResource) => {
+    switch (resource.getKind()) {
+      case 'image':
+        return getLocalResourceFullPath(this.props.project, resource.getName());
+      case 'audio':
+        return 'res/actions/music24.png';
+      case 'json':
+        return 'res/actions/fichier24.png';
+      case 'video':
+        return 'JsPlatform/Extensions/videoicon24.png';
+      case 'font':
+        return 'res/actions/font24.png';
+      default:
+        return 'res/unknown32.png'; //Icon type inconnu
+    }
   };
 
   _rename = (resource: gdResource, newName: string) => {
@@ -313,8 +375,25 @@ export default class ResourcesList extends React.Component<Props, State> {
     this.forceUpdateList();
   };
 
+  checkResourcesStatus = () => {
+    const { project } = this.props;
+    const resourcesManager = project.getResourcesManager();
+    const resourceNames = resourcesManager.getAllResourceNames().toJSArray();
+    const resourcesWithErrors = {};
+    resourceNames.forEach(resourceName => {
+      resourcesWithErrors[resourceName] = getResourceStatus(
+        project,
+        resourceName
+      );
+    });
+    this.setState({ resourcesWithErrors });
+    this.forceUpdateList();
+  };
+
   componentDidMount() {
+    //TODO rework les deux fonctions car là elle s'écrasent l'une l'autre.
     this.checkMissingPaths();
+    this.checkResourcesStatus();
   }
 
   render() {
@@ -347,6 +426,7 @@ export default class ResourcesList extends React.Component<Props, State> {
                     width={width}
                     height={height}
                     getItemName={getResourceName}
+                    getItemThumbnail={this._getResourceThumbnail}
                     selectedItems={selectedResource ? [selectedResource] : []}
                     onItemSelected={onSelectResource}
                     renamedItem={this.state.renamedResource}

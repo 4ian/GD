@@ -9,6 +9,7 @@ import ResourcePreview from '../../ResourcesList/ResourcePreview';
 import ResourcesLoader from '../../ResourcesLoader';
 import propertiesMapToSchema from '../../PropertiesEditor/PropertiesMapToSchema';
 import { type Schema } from '../../PropertiesEditor';
+import AlertMessage from '../../UI/AlertMessage';
 
 import {
   type ResourceSource,
@@ -94,7 +95,7 @@ export default class ResourcePropertiesEditor extends React.Component<
   };
 
   _renderResourcesProperties() {
-    const { resources } = this.props;
+    const { resources, project, resourcesLoader } = this.props;
     //TODO: Multiple resources support
     const properties = resources[0].getProperties();
     const resourceSchema = propertiesMapToSchema(
@@ -102,12 +103,24 @@ export default class ResourcePropertiesEditor extends React.Component<
       resource => resource.getProperties(),
       (resource, name, value) => resource.updateProperty(name, value)
     );
+    const warningSizeSprite = resourcesLoader.getStatusCode(
+      project,
+      resources[0].getName()
+    );
 
     return (
       <div
         style={styles.propertiesContainer}
         key={resources.map(resource => '' + resource.ptr).join(';')}
       >
+        {warningSizeSprite === 'WARNING_IMAGE_EXCEEDED_2048_PIXELS' && (
+          <AlertMessage kind="error">
+            <Trans>
+              This resource are taller than 2048px wide, this reduce the
+              performance and can be not correctly display on mobile devices.
+            </Trans>
+          </AlertMessage>
+        )}
         <PropertiesEditor
           schema={this.schema.concat(resourceSchema)}
           instances={resources}

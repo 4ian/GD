@@ -84,6 +84,7 @@ export default [
           return resources.map(resourcePath => {
             const imageResource = new gd.ImageResource();
             const projectPath = path.dirname(project.getProjectFile());
+
             imageResource.setFile(path.relative(projectPath, resourcePath));
             imageResource.setName(path.relative(projectPath, resourcePath));
 
