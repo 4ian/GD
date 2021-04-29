@@ -1019,8 +1019,7 @@ describe('gdjs.PlatformerObjectRuntimeBehavior', function () {
       expect(object.getY()).to.be.above(-30);
     });
 
-    // This test doesn't pass because the object doesn't follow the platform.
-    it.skip('follows a platform that is slightly overlapping its top', function () {
+    it('follows a platform that is slightly overlapping its top', function () {
       for (let i = 0; i < 10; ++i) {
         runtimeScene.renderAndStep(1000 / 60);
       }
@@ -1145,7 +1144,6 @@ describe('gdjs.PlatformerObjectRuntimeBehavior', function () {
       expect(object.getBehavior('auto1').isOnFloor()).to.be(true);
     });
 
-    // The following tests doesn't pass because the object sometimes round inside the moving platform and can't move right and left.
     [-10, -10.1, -9.9].forEach((platformY) => {
       [
         -maxDeltaY + epsilon,
@@ -1157,7 +1155,7 @@ describe('gdjs.PlatformerObjectRuntimeBehavior', function () {
         0,
       ].forEach((deltaY) => {
         [-maxDeltaX, maxDeltaX, 0].forEach((deltaX) => {
-          it.skip(`follows the platform moving (${deltaX}; ${deltaY}) with initial Y = ${platformY}`, function () {
+          it(`follows the platform moving (${deltaX}; ${deltaY}) with initial Y = ${platformY}`, function () {
             platform.setPosition(platform.getX(), platformY);
             for (let i = 0; i < 10; ++i) {
               runtimeScene.renderAndStep(1000 / 60);
@@ -1275,10 +1273,6 @@ describe('gdjs.PlatformerObjectRuntimeBehavior', function () {
         expect(object.getBehavior('auto1').isMoving()).to.be(false);
       });
 
-      // The following tests doesn't pass
-      // because the object sometimes round inside the moving platform
-      // so it can't move right and left
-      // or there is a gap between the moving platform and the object.
       [-10, -10.1, -9.9].forEach((platformY) => {
         [
           -maxDeltaY + epsilon,
@@ -1290,7 +1284,7 @@ describe('gdjs.PlatformerObjectRuntimeBehavior', function () {
           0,
         ].forEach((deltaY) => {
           [-maxDeltaX, maxDeltaX, 0].forEach((deltaX) => {
-            it.skip(`follows the platform moving (${deltaX}; ${deltaY}) with initial Y = ${platformY}`, function () {
+            it(`follows the platform moving (${deltaX}; ${deltaY}) with initial Y = ${platformY}`, function () {
               platform.setPosition(platform.getX(), platformY);
               for (let i = 0; i < 10; ++i) {
                 runtimeScene.renderAndStep(1000 / 60);
