@@ -141,6 +141,9 @@ namespace gdjs {
     }
 
     doStepPreEvents(runtimeScene: gdjs.RuntimeScene) {
+      // Avoid inconsistencies between spacial search and the actual platforms location
+      this._manager.updateAABBIfNeeded(runtimeScene);
+
       const LEFTKEY = 37;
       const UPKEY = 38;
       const RIGHTKEY = 39;
@@ -238,6 +241,15 @@ namespace gdjs {
       //5) Track the movement
       this._hasReallyMoved = Math.abs(object.getX() - oldX) >= 1;
       this._lastDeltaY = object.getY() - oldY;
+
+      // When the object is both platformer and platform, update its AABB.
+      // Depending on the doStepPreEvents calls order platformer instance
+      // collisions can be sightly different but that should be fine.
+      const behavior = object.getBehavior('Platform');
+      if (behavior != null) {
+        const platformBehavior = behavior as gdjs.PlatformRuntimeBehavior;
+        platformBehavior.updateAABB(runtimeScene);
+      }
     }
 
     doStepPostEvents(runtimeScene: gdjs.RuntimeScene) {}
