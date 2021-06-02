@@ -297,7 +297,7 @@ export const getAutocompletionsFromDescriptions = (
   );
 };
 
-const separatorChars = ' .:+-/*=()<>[]@!?|\\^%#';
+let separatorChars = ' .:+-/*=()<>[]@!?|\\^%#';
 
 type InsertedAutocompletion = {|
   completion: string,
@@ -352,6 +352,31 @@ export const insertAutocompletionInExpression = (
     return separatorChars.indexOf(char) !== -1;
   };
 
+  const isExpression = (word: string) => {
+    return word.includes('::');
+  };
+
+  // Find the end position of the current word
+  let wordEndPosition = startPosition;
+  while (
+    wordEndPosition < expression.length &&
+    !isSeparatorChar(expression[wordEndPosition + 1])
+  ) {
+    wordEndPosition++;
+  }
+
+  // The next character, if any, will be useful to format the completion
+  // (to avoid repeating an existing character).
+  const maybeNextCharacter: ?string = expression[wordEndPosition + 1];
+
+  const insertedWord = formatCompletion(maybeNextCharacter);
+
+  if (isExpression(insertedWord)) {
+    separatorChars = separatorChars.replace(':', '');
+  } else if (!separatorChars.includes(':')) {
+    separatorChars = separatorChars.concat(':');
+  }
+
   // Find the start position of the current word, unless we're already on a separator.
   let wordStartPosition = startPosition;
   const startPositionIsSeparator = isSeparatorChar(
@@ -369,22 +394,7 @@ export const insertAutocompletionInExpression = (
     // must be after the separator.
     wordStartPosition++;
   }
-
-  // Find the end position of the current word
-  let wordEndPosition = startPosition;
-  while (
-    wordEndPosition < expression.length &&
-    !isSeparatorChar(expression[wordEndPosition + 1])
-  ) {
-    wordEndPosition++;
-  }
-
-  // The next character, if any, will be useful to format the completion
-  // (to avoid repeating an existing character).
-  const maybeNextCharacter: ?string = expression[wordEndPosition + 1];
-
   const newExpressionStart = expression.substring(0, wordStartPosition);
-  const insertedWord = formatCompletion(maybeNextCharacter);
   const newExpressionEnd = expression.substring(wordEndPosition + 1);
 
   return {
