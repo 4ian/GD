@@ -19,7 +19,7 @@ namespace gdjs {
     _ignoreTouchingEdges: boolean = true;
     _roundCoordinates: boolean;
     _gravity: float;
-    private _maxFallingSpeed: float;
+    _maxFallingSpeed: float;
     _ladderClimbingSpeed: float;
     private _acceleration: float;
     private _deceleration: float;
@@ -64,6 +64,8 @@ namespace gdjs {
     _requestedDeltaX: float = 0;
     _requestedDeltaY: float = 0;
     _lastDeltaY: float = 0;
+
+    static epsilon: float = 1 / (2 << 16);
 
     constructor(
       runtimeScene: gdjs.RuntimeScene,
@@ -141,6 +143,9 @@ namespace gdjs {
     }
 
     doStepPreEvents(runtimeScene: gdjs.RuntimeScene) {
+      // Avoid inconsistencies between spacial search and the actual platforms location
+      this._manager.updateAABBIfNeeded(runtimeScene);
+
       const LEFTKEY = 37;
       const UPKEY = 38;
       const RIGHTKEY = 39;
@@ -201,7 +206,7 @@ namespace gdjs {
 
       //1) X axis:
       this._state.checkTransitionBeforeX();
-      this._state.beforeMovingX();
+      this._state.beforeMovingX(timeDelta);
 
       //Ensure the object is not stuck
       if (this._separateFromPlatforms(this._potentialCollidingObjects, true)) {
@@ -223,7 +228,7 @@ namespace gdjs {
       this._updateOverlappedJumpThru();
       //TODO what about a moving platforms, remove this condition to do the same as for grabbing?
       if (this._state !== this._onLadder) {
-        this._checkTransitionOnFloorOrFalling();
+        this._checkTransitionOnFloorOrFalling(true);
       }
 
       //4) Do not forget to reset pressed keys
@@ -238,6 +243,15 @@ namespace gdjs {
       //5) Track the movement
       this._hasReallyMoved = Math.abs(object.getX() - oldX) >= 1;
       this._lastDeltaY = object.getY() - oldY;
+
+      // When the object is both platformer and platform, update its AABB.
+      // Depending on the doStepPreEvents calls order platformer instance
+      // collisions can be sightly different but that should be fine.
+      const behavior = object.getBehavior('Platform');
+      if (behavior != null) {
+        const platformBehavior = behavior as gdjs.PlatformRuntimeBehavior;
+        platformBehavior.updateAABB(runtimeScene);
+      }
     }
 
     doStepPostEvents(runtimeScene: gdjs.RuntimeScene) {}
@@ -472,7 +486,7 @@ namespace gdjs {
       collidingPlatforms.length = 0;
     }
 
-    private _checkTransitionOnFloorOrFalling() {
+    _checkTransitionOnFloorOrFalling(updateFloorPosition: boolean) {
       const object = this.owner;
       //Check if the object is on a floor:
       //In priority, check if the last floor platform is still the floor.
@@ -487,7 +501,10 @@ namespace gdjs {
         )
       ) {
         //Still on the same floor
-        this._onFloor.updateFloorPosition();
+        object.setY(oldY);
+        if (updateFloorPosition) {
+          this._onFloor.updateFloorPosition();
+        }
       } else {
         // Avoid landing on a platform if the object is not going down.
         // (which could happen for Jumpthru, when the object jump and pass just at the top
@@ -498,13 +515,16 @@ namespace gdjs {
         let collidingPlatform = this._getCollidingPlatform();
         if (canLand && collidingPlatform !== null) {
           //Register the colliding platform as the floor.
+          object.setY(oldY);
           this._setOnFloor(collidingPlatform);
         } else if (this._state === this._onFloor) {
           // don't fall if GrabbingPlatform or OnLadder
+          object.setY(oldY);
           this._setFalling();
+        } else {
+          object.setY(oldY);
         }
       }
-      object.setY(oldY);
     }
 
     _fall(timeDelta: float) {
@@ -708,7 +728,7 @@ namespace gdjs {
      * the behavior owner object.
      * Note: _updatePotentialCollidingObjects must have been called before.
      */
-    private _updateOverlappedJumpThru() {
+    _updateOverlappedJumpThru() {
       this._overlappedJumpThru.length = 0;
       for (let i = 0; i < this._potentialCollidingObjects.length; ++i) {
         const platform = this._potentialCollidingObjects[i];
@@ -1166,7 +1186,7 @@ namespace gdjs {
     /**
      * Use _requestedDeltaX and _requestedDeltaY to choose the movement that suits the state before moving horizontally.
      */
-    beforeMovingX(): void;
+    beforeMovingX(timeDelta: float): void;
     /**
      * Check if transitions to other states are needed and apply them before moving vertically.
      */
@@ -1212,15 +1232,36 @@ namespace gdjs {
     }
 
     beforeUpdatingObstacles(timeDelta: float) {
+      const behavior = this._behavior;
       const object = this._behavior.owner;
       //Stick the object to the floor if its height has changed.
       if (this._oldHeight !== object.getHeight()) {
         object.setY(
           this._floorLastY -
             object.getHeight() +
-            (object.getY() - object.getDrawableY()) -
-            1
+            (object.getY() - object.getDrawableY())
         );
+      }
+
+      // Directly follow the platform to avoid a transition loop with Falling,
+      // because otherwise with a requestDelta, it would result to:
+      // - going down, the player is no longer on a platform and falls
+      // - going up, the player will already be pushed on top on the platform by beforeMovingY()
+      //   that handle slopes and avoid player being stuck. So adding a request result in
+      //   going to much higher and fell at next frame.
+      const deltaY = this._floorPlatform!.owner.getY() - this._floorLastY;
+      if (
+        (deltaY !== 0 &&
+          Math.abs(deltaY) <=
+            Math.abs(this._behavior._maxFallingSpeed * timeDelta)) ||
+        (deltaY < 0 &&
+          gdjs.RuntimeObject.collisionTest(
+            object,
+            this._floorPlatform!.owner,
+            behavior._ignoreTouchingEdges
+          ))
+      ) {
+        object.setY(object.getY() + deltaY);
       }
     }
 
@@ -1235,15 +1276,12 @@ namespace gdjs {
       ) {
         behavior._setFalling();
       }
+      this._behavior._checkTransitionOnFloorOrFalling(false);
     }
 
-    beforeMovingX() {
-      const behavior = this._behavior;
-      //Shift the object according to the floor movement.
-      behavior._requestedDeltaX +=
+    beforeMovingX(timeDelta: float) {
+      this._behavior._requestedDeltaX +=
         this._floorPlatform!.owner.getX() - this._floorLastX;
-      behavior._requestedDeltaY +=
-        this._floorPlatform!.owner.getY() - this._floorLastY;
     }
 
     checkTransitionBeforeY(timeDelta: float) {
@@ -1259,15 +1297,19 @@ namespace gdjs {
       const object = behavior.owner;
 
       //Follow the floor
+
+      // Because of rounding errors when separating objects
+      // the collision test can do false positives.
+      // So, margin error is used.
       if (
-        gdjs.RuntimeObject.collisionTest(
+        gdjs.RuntimeObject.collisionTestWithMargin(
           object,
           this._floorPlatform!.owner,
-          behavior._ignoreTouchingEdges
+          gdjs.PlatformerObjectRuntimeBehavior.epsilon
         )
       ) {
         //Floor is getting up, as the object is colliding with it.
-        let oldY = object.getY();
+        const oldY = object.getY();
         let step = 0;
         let stillInFloor = false;
         do {
@@ -1325,11 +1367,12 @@ namespace gdjs {
         }
       } else {
         //Floor is flat or get down.
-        let oldY = object.getY();
+        const oldY = object.getY();
         const tentativeStartY = object.getY() + 1;
         object.setY(
           behavior._roundCoordinates
-            ? Math.round(tentativeStartY)
+            ? // tentativeStartY is already incremented, floor avoid to jump from more than one pixel
+              Math.floor(tentativeStartY)
             : tentativeStartY
         );
         let step = 0;
@@ -1355,10 +1398,34 @@ namespace gdjs {
         if (noMoreOnFloor) {
           object.setY(oldY);
         } else {
-          object.setY(
-            //Floor touched: Go back 1 pixel over.
-            object.getY() - 1
-          );
+          if (behavior._roundCoordinates) {
+            object.setY(
+              //Floor touched: Go back 1 pixel over.
+              object.getY() - 1
+            );
+          } else {
+            // Moving platforms won't always be right on a pixel
+            // Avoid a gap between the object and the platform
+            const beforeSeparationX = object.getX();
+            const beforeSeparationY = object.getY();
+            object.separateFromObjects(
+              [this._floorPlatform!.owner],
+              this._behavior._ignoreTouchingEdges
+            );
+            const deltaX = object.getX() - beforeSeparationX;
+            const deltaY = object.getY() - beforeSeparationY;
+            if (
+              deltaX < gdjs.PlatformerObjectRuntimeBehavior.epsilon &&
+              deltaX > -gdjs.PlatformerObjectRuntimeBehavior.epsilon &&
+              deltaY >= -1 &&
+              deltaY < gdjs.PlatformerObjectRuntimeBehavior.epsilon
+            ) {
+              object.setX(beforeSeparationX);
+              object.setY(Math.min(beforeSeparationY, object.getY()));
+            } else {
+              object.setPosition(beforeSeparationX, beforeSeparationY - 1);
+            }
+          }
         }
       }
     }
@@ -1388,7 +1455,7 @@ namespace gdjs {
 
     checkTransitionBeforeX() {}
 
-    beforeMovingX() {}
+    beforeMovingX(timeDelta: float) {}
 
     checkTransitionBeforeY(timeDelta: float) {
       const behavior = this._behavior;
@@ -1401,6 +1468,9 @@ namespace gdjs {
       if (behavior._canGrabPlatforms && behavior._requestedDeltaX !== 0) {
         behavior._checkGrabPlatform();
       }
+
+      this._behavior._updateOverlappedJumpThru();
+      this._behavior._checkTransitionOnFloorOrFalling(true);
     }
 
     beforeMovingY(timeDelta: float, oldX: float) {
@@ -1454,7 +1524,7 @@ namespace gdjs {
 
     checkTransitionBeforeX() {}
 
-    beforeMovingX() {}
+    beforeMovingX(timeDelta: float) {}
 
     checkTransitionBeforeY(timeDelta: float) {
       const behavior = this._behavior;
@@ -1545,7 +1615,7 @@ namespace gdjs {
       }
     }
 
-    beforeMovingX() {
+    beforeMovingX(timeDelta: float) {
       const behavior = this._behavior;
       //Shift the object according to the grabbed platform movement.
       // this erases any other movement
@@ -1600,7 +1670,7 @@ namespace gdjs {
 
     checkTransitionBeforeX() {}
 
-    beforeMovingX() {}
+    beforeMovingX(timeDelta: float) {}
 
     checkTransitionBeforeY(timeDelta: float) {
       const behavior = this._behavior;
