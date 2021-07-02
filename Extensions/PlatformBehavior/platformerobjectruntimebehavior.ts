@@ -141,6 +141,9 @@ namespace gdjs {
     }
 
     doStepPreEvents(runtimeScene: gdjs.RuntimeScene) {
+      // Avoid inconsistencies between spacial search and the actual platforms location
+      this._manager.updateAABBIfNeeded(runtimeScene);
+
       const LEFTKEY = 37;
       const UPKEY = 38;
       const RIGHTKEY = 39;
@@ -223,7 +226,7 @@ namespace gdjs {
       this._updateOverlappedJumpThru();
       //TODO what about a moving platforms, remove this condition to do the same as for grabbing?
       if (this._state !== this._onLadder) {
-        this._checkTransitionOnFloorOrFalling();
+        this._checkTransitionOnFloorOrFalling(true);
       }
 
       //4) Do not forget to reset pressed keys
@@ -238,6 +241,15 @@ namespace gdjs {
       //5) Track the movement
       this._hasReallyMoved = Math.abs(object.getX() - oldX) >= 1;
       this._lastDeltaY = object.getY() - oldY;
+
+      // When the object is both platformer and platform, update its AABB.
+      // Depending on the doStepPreEvents calls order platformer instance
+      // collisions can be sightly different but that should be fine.
+      const behavior = object.getBehavior('Platform');
+      if (behavior != null) {
+        const platformBehavior = behavior as gdjs.PlatformRuntimeBehavior;
+        platformBehavior.updateAABB(runtimeScene);
+      }
     }
 
     doStepPostEvents(runtimeScene: gdjs.RuntimeScene) {}
@@ -472,7 +484,7 @@ namespace gdjs {
       collidingPlatforms.length = 0;
     }
 
-    private _checkTransitionOnFloorOrFalling() {
+    _checkTransitionOnFloorOrFalling(updateFloorPosition: boolean) {
       const object = this.owner;
       //Check if the object is on a floor:
       //In priority, check if the last floor platform is still the floor.
@@ -487,7 +499,10 @@ namespace gdjs {
         )
       ) {
         //Still on the same floor
-        this._onFloor.updateFloorPosition();
+        object.setY(oldY);
+        if (updateFloorPosition) {
+          this._onFloor.updateFloorPosition();
+        }
       } else {
         // Avoid landing on a platform if the object is not going down.
         // (which could happen for Jumpthru, when the object jump and pass just at the top
@@ -498,13 +513,16 @@ namespace gdjs {
         let collidingPlatform = this._getCollidingPlatform();
         if (canLand && collidingPlatform !== null) {
           //Register the colliding platform as the floor.
+          object.setY(oldY);
           this._setOnFloor(collidingPlatform);
         } else if (this._state === this._onFloor) {
           // don't fall if GrabbingPlatform or OnLadder
+          object.setY(oldY);
           this._setFalling();
+        } else {
+          object.setY(oldY);
         }
       }
-      object.setY(oldY);
     }
 
     _fall(timeDelta: float) {
@@ -708,7 +726,7 @@ namespace gdjs {
      * the behavior owner object.
      * Note: _updatePotentialCollidingObjects must have been called before.
      */
-    private _updateOverlappedJumpThru() {
+    _updateOverlappedJumpThru() {
       this._overlappedJumpThru.length = 0;
       for (let i = 0; i < this._potentialCollidingObjects.length; ++i) {
         const platform = this._potentialCollidingObjects[i];
@@ -1218,8 +1236,7 @@ namespace gdjs {
         object.setY(
           this._floorLastY -
             object.getHeight() +
-            (object.getY() - object.getDrawableY()) -
-            1
+            (object.getY() - object.getDrawableY())
         );
       }
     }
@@ -1235,6 +1252,7 @@ namespace gdjs {
       ) {
         behavior._setFalling();
       }
+      this._behavior._checkTransitionOnFloorOrFalling(false);
     }
 
     beforeMovingX() {
@@ -1401,6 +1419,9 @@ namespace gdjs {
       if (behavior._canGrabPlatforms && behavior._requestedDeltaX !== 0) {
         behavior._checkGrabPlatform();
       }
+
+      this._behavior._updateOverlappedJumpThru();
+      this._behavior._checkTransitionOnFloorOrFalling(true);
     }
 
     beforeMovingY(timeDelta: float, oldX: float) {
