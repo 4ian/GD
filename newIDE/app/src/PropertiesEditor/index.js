@@ -276,7 +276,8 @@ export default class PropertiesEditor extends React.Component<Props, {||}> {
             );
             this._onInstancesModified(this.props.instances);
           }}
-          type="number"
+          type="string"
+          evaluateValue
           style={styles.field}
           disabled={field.disabled}
         />
