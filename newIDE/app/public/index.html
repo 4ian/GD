@@ -61,5 +61,31 @@
         </p>
       </div>
     </noscript>
+    <script>
+      // Apply background color for startup
+      (function() {
+        // This object will be added to whenever a new theme is added.
+        var backgroundColors = {
+          Dark: '#252525',
+          Nord: '#2E3440',
+          'Solarized Dark': '#00212B'
+        };
+        var themeName;
+        try {
+          themeName = JSON.parse(localStorage.getItem("gd-preferences"))['themeName'];
+        } catch (err) {
+          console.error("Unable to parse the preferences to set up the background color:", err);
+          console.log("Preferences may be corrupt or missing");
+        }
+        
+        if (!(themeName in backgroundColors)) {
+          console.error('Theme does not have a background color');
+          return;
+        }
+        if (themeName != 'GDevelop default') {
+          document.body.style.backgroundColor = backgroundColors[themeName]
+        }
+      })()  
+    </script>
   </body>
 </html>
