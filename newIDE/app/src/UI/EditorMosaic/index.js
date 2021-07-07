@@ -5,6 +5,8 @@ import {
   MosaicWindow as RMMosaicWindow,
   MosaicWithoutDragDropContext,
   getLeaves,
+  createRemoveUpdate,
+  updateTree,
 } from 'react-mosaic-component';
 import CloseButton from './CloseButton';
 import ThemeConsumer from '../Theme/ThemeConsumer';
@@ -31,6 +33,71 @@ export type EditorMosaicNode =
       second: ?EditorMosaicNode,
     |}
   | string;
+
+// Check for a node in the mosaicTree.
+const hasNode = (nodeName: string, mosaicNode: ?EditorMosaicNode): boolean => {
+  const nodeNames = getLeaves(mosaicNode);
+  if (nodeNames.indexOf(nodeName) !== -1) return true;
+
+  return false;
+};
+
+// Get path of a node in the mosaicTree.
+const getPathOfNode = (
+  nodeName: string,
+  mosaicNode: ?EditorMosaicNode
+): Array<?string> => {
+  let path = [];
+  const hasPath = (node: ?EditorMosaicNode) => {
+    if (!node) return;
+
+    if (typeof node.first === 'string') {
+      if (node.first === nodeName) {
+        path.push('first');
+        return true;
+      }
+    }
+
+    if (typeof node.second === 'string') {
+      if (node.second === nodeName) {
+        path.push('second');
+        return true;
+      }
+    }
+
+    if (node.first && typeof node.first !== 'string') {
+      path.push('first');
+      if (hasPath(node.first)) return true;
+    }
+
+    if (node.second && typeof node.second !== 'string') {
+      path.push('second');
+      if (hasPath(node.second)) return true;
+    }
+
+    return false;
+  };
+
+  if (hasPath(mosaicNode)) return path;
+
+  return [];
+};
+
+// Remove a node in the mosaicTree.
+const removeNode = (
+  editorName: string,
+  mosaicNodeRoot: ?EditorMosaicNode
+): EditorMosaicNode => {
+  try {
+    const path = getPathOfNode(editorName, mosaicNodeRoot);
+    const mosiacUpdates = [createRemoveUpdate(mosaicNodeRoot, path)];
+    const updatedTree = updateTree(mosaicNodeRoot, mosiacUpdates);
+
+    return updatedTree;
+  } catch (error) {
+    return mosaicNodeRoot;
+  }
+};
 
 // Add a node (an editor) in the mosaic.
 const addNode = (
@@ -169,12 +236,12 @@ export default class EditorMosaic extends React.Component<Props, State> {
   ) => {
     const { editors, limitToOneSecondaryEditor } = this.props;
 
-    const editor = this.props.editors[editorName];
+    const editor = editors[editorName];
     if (!editor) return false;
 
     const openedEditorNames = getLeaves(this.state.mosaicNode);
     if (openedEditorNames.indexOf(editorName) !== -1) {
-      return false;
+      return true;
     }
 
     if (limitToOneSecondaryEditor && editor.type === 'secondary') {
@@ -208,6 +275,44 @@ export default class EditorMosaic extends React.Component<Props, State> {
     });
 
     this._persistNodes();
+    return true;
+  };
+
+  closeEditor = (editorName: string) => {
+    if (!this._isEditorExist(editorName)) return false;
+
+    if (!hasNode(editorName, this.state.mosaicNode)) return true;
+
+    this.setState({
+      mosaicNode: removeNode(editorName, this.state.mosaicNode),
+    });
+
+    return true;
+  };
+
+  isEditorOpen = (editorName: string) => {
+    if (!this._isEditorExist(editorName)) return false;
+    if (hasNode(editorName, this.state.mosaicNode)) return true;
+
+    return false;
+  };
+
+  toggleEditor = (
+    editorName: string,
+    position: 'start' | 'end',
+    splitPercentage: number,
+    direction: 'row' | 'column'
+  ) => {
+    if (this.isEditorOpen(editorName)) this.closeEditor(editorName);
+    else this.openEditor(editorName, position, splitPercentage, direction);
+  };
+
+  _isEditorExist = (editorName: string) => {
+    const { editors } = this.props;
+
+    const editor = editors[editorName];
+    if (!editor) return false;
+
     return true;
   };
 
