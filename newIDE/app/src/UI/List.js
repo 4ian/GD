@@ -20,6 +20,12 @@ import Search from '@material-ui/icons/Search';
 import { type MenuItemTemplate } from './Menu/Menu.flow';
 import { useLongTouch } from '../Utils/UseLongTouch';
 
+const styles = {
+  listItemText: {
+    margin: '0 auto',
+  },
+};
+
 const useDenseLists = true;
 export const listItemWith32PxIconHeight = 32;
 export const listItemWithoutIconHeight = 29;
@@ -212,6 +218,7 @@ export const ListItem = React.forwardRef<ListItemProps, ListItemRefType>(
             style={styles.listItemText}
             primary={props.primaryText}
             secondary={props.secondaryText}
+            style={styles.listItemText}
           />
           {renderListItemSecondaryAction()}
           {props.displayAddIcon && (
@@ -247,6 +254,7 @@ export const ListItem = React.forwardRef<ListItemProps, ListItemRefType>(
               style={styles.listItemText}
               primary={props.primaryText}
               secondary={props.secondaryText}
+              style={styles.listItemText}
             />
             {props.autoGenerateNestedIndicator ? (
               isItemOpen ? (
