@@ -165,6 +165,8 @@
       textureCache: textureCache,
       layers: tiledData.layers,
       tiles: tiles,
+      tilemapHeight: tiledData.height * tileheight,
+      tilemapWidth: tiledData.width * tilewidth,
     };
     return tileMapData;
   };
@@ -246,7 +248,12 @@
         FLIPPED_DIAGONALLY_FLAG
       );
 
-    return [tileUid, !!flippedHorizontally, !!flippedVertically, !!flippedDiagonally];
+    return [
+      tileUid,
+      !!flippedHorizontally,
+      !!flippedVertically,
+      !!flippedDiagonally,
+    ];
   };
 
   /**
