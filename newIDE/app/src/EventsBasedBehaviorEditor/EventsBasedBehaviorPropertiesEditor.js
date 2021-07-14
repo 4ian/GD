@@ -22,6 +22,7 @@ import Visibility from '@material-ui/icons/Visibility';
 import VisibilityOff from '@material-ui/icons/VisibilityOff';
 import Add from '@material-ui/icons/Add';
 import { ResponsiveLineStackLayout, ColumnStackLayout } from '../UI/Layout';
+import BehaviorTypeSelector from '../BehaviorTypeSelector';
 
 const gd: libGDevelop = global.gd;
 
@@ -222,6 +223,10 @@ export default class EventsBasedBehaviorPropertiesEditor extends React.Component
                                 value="Boolean"
                                 primaryText={t`Boolean (checkbox)`}
                               />
+                              <SelectOption
+                                value="Behavior"
+                                primaryText={t`Required behavior`}
+                              />
                             </SelectField>
                             {(property.getType() === 'String' ||
                               property.getType() === 'Number') && (
@@ -266,6 +271,26 @@ export default class EventsBasedBehaviorPropertiesEditor extends React.Component
                                   primaryText={t`False (not checked)`}
                                 />
                               </SelectField>
+                            )}
+                            {property.getType() === 'Behavior' && (
+                              <BehaviorTypeSelector
+                                project={this.props.project}
+                                objectType={this.props.eventsBasedBehavior.getObjectType()}
+                                value={
+                                  property.getExtraInfo().size() === 0
+                                    ? ''
+                                    : property.getExtraInfo().at(0)
+                                }
+                                onChange={(newValue: string) => {
+                                  if (property.getExtraInfo().size() !== 0) {
+                                    property.clearExtraInfo();
+                                  }
+                                  property.addExtraInfo(newValue);
+                                  this.forceUpdate();
+                                  this.props.onPropertiesUpdated();
+                                }}
+                                disabled={false}
+                              />
                             )}
                           </ResponsiveLineStackLayout>
                           <SemiControlledTextField
