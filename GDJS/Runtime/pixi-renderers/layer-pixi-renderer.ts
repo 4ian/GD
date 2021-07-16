@@ -5,6 +5,8 @@
  */
 
 namespace gdjs {
+  const logger = new gdjs.Logger('PIXI layer renderer');
+
   import PIXI = GlobalPIXIModule.PIXI;
 
   /**
@@ -102,7 +104,7 @@ namespace gdjs {
         effectData.effectType
       );
       if (!filterCreator) {
-        console.log(
+        logger.warn(
           'Filter "' +
             effectData.name +
             '" has an unknown effect type: "' +
